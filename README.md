@@ -37,7 +37,7 @@ cpanm MCE
 cpanm Array::IntSpan
 cpanm Text::NSP
 ```
-Note: It is strongly recommended to use the specified software versions to avoid compatibility issues.
+**Note: It is strongly recommended to use the specified software versions to avoid compatibility issues.**
 
 ### 3. Installation Check
 
