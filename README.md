@@ -98,7 +98,74 @@ Please refer to the [GitHub repository](https://github.com/mflamand/Bullseye) fo
 
 Currently supported species: Human and Mouse.
 
-## 
+## HEK293T Download and Processing Workflow
+
+### 1. Download Related Data
+
+Mainly use single-cell data, including iDART_SMART-seq APOBEC1-YTH Cell and iDART_SMART-seq APOBEC1-YTHmut Cell. Separate them into two folders based on whether they are mutants (mut), then use download.sh and download_mut.sh scripts to download separately. Note to modify the parallel count according to your server configuration.
+
+### 2. Data Processing
+
+#### 2.1 Use Flexbar for Adapter Trimming and Quality Cutting (flexbar.sh and flexbar_mut.sh)
+
+```bash
+flexbar \
+  -r /path/to/..._1.fastq.gz \
+  -p /path/to/..._2.fastq.gz \
+  -t trimmed/sample_trimmed \
+  --adapter-preset Nextera \
+  -ap ON \
+  --adapter-trim-end RIGHT \
+  --adapter-min-overlap 7 \
+  -ae 0.1 \
+  --qtrim-format sanger \
+  -q TAIL \
+  -qtrim-threshold 20 \
+  -m 36 \
+  -n 8 \
+  --zip-output GZ
+```
+
+**Parameter Explanations:**
+- `-r /path/to/..._1.fastq.gz`: Input file 1 (Read 1), path to the first end FASTQ file of paired-end sequencing
+- `-p /path/to/..._2.fastq.gz`: Input file 2 (Read 2), path to the second end FASTQ file of paired-end sequencing
+- `-t trimmed/sample_trimmed`: Output file prefix, processed files will be named with this prefix, e.g., trimmed/sample_trimmed_1.fastq.gz
+- `--adapter-preset Nextera`: Use built-in Nextera adapter preset, automatically loads Illumina Nextera library construction adapter sequences
+- `-ap ON`: Enable paired-end adapter overlap detection, use paired information for more accurate adapter removal
+- `--adapter-trim-end RIGHT`: Only remove adapters from the right end (3' end) of reads, as Illumina adapters are usually connected at sequence ends
+- `--adapter-min-overlap 7`: Perform trimming only when adapter and read match with at least 7 base overlap, avoiding false trimming
+- `-ae 0.1`: Allow 10% mismatches (error rate 0.1), permit certain mismatches when adapter matches read
+- `--qtrim-format sanger`: Specify FASTQ quality value format as Sanger (Phred+33), common format for modern Illumina sequencing
+- `-q TAIL`: Perform quality trimming from read tail (low-quality bases will be trimmed)
+- `-qtrim-threshold 20`: Quality threshold of 20, bases below this Phred score will be trimmed from the tail
+- `-m 36`: Minimum retained length 36 bp, discard reads shorter than 36 bases after trimming
+- `-n 8`: Use 8 threads for parallel processing to speed up
+- `--zip-output GZ`: Compress output files to gzip format to reduce file size
+
+## 3. Use STAR to Generate BAM Files
+
+Generate genome index (star_1.sh):
+```bash
+STAR --runThreadN 8 \
+     --runMode genomeGenerate \
+     --genomeDir genome_index \
+     --genomeFastaFiles /path/to/...human.fa \
+     --sjdbGTFfile /path/to/...Homo_sapiens.GRCh38.112.gtf \
+     --sjdbOverhang 150
+```
+
+This generates genome_index for the next alignment step. The `--sjdbOverhang` parameter is determined by the read length.  
+Specifically, it should be set to **read length minus 1**。
+
+STAR alignment (star_2.sh and star_2mut.sh):
+```bash
+STAR --runThreadN 8 \
+     --genomeDir genome_index \
+     --readFilesIn "$R1" "$R2" \
+     --readFilesCommand zcat \
+     --outFileNamePrefix "$OUTPUT_SUBDIR/${SRR_ID}_" \
+     --outSAMtype BAM SortedByCoordinate
+```
 
 
 
