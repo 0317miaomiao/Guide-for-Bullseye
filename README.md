@@ -142,7 +142,7 @@ flexbar \
 - `-n 8`: Use 8 threads for parallel processing to speed up
 - `--zip-output GZ`: Compress output files to gzip format to reduce file size
 
-## 3. Use STAR to Generate BAM Files
+### 3. Use STAR to Generate BAM Files
 
 Generate genome index (star_1.sh):
 ```bash
@@ -166,6 +166,35 @@ STAR --runThreadN 8 \
      --outFileNamePrefix "$OUTPUT_SUBDIR/${SRR_ID}_" \
      --outSAMtype BAM SortedByCoordinate
 ```
+### 4. BAM File Processing and Deduplication using SAMtools
+
+After generating BAM files with STAR, perform deduplication using SAMtools (1.11) fixmate and markdup:
+
+```bash
+# Step 1: Name sort the BAM file
+samtools sort -n -o path/to/bam_output/${SAMPLE_ID}_namesorted.bam path/to/star_output/${SAMPLE_ID}_Aligned.sortedByCoord.out.bam
+
+# Step 2: Fix mate information
+samtools fixmate -m path/to/bam_output/${SAMPLE_ID}_namesorted.bam path/to/bam_output/${SAMPLE_ID}_fixmate.bam
+
+# Step 3: Coordinate sort the fixed BAM file
+samtools sort -o path/to/bam_output/${SAMPLE_ID}_coord_sorted.bam path/to/bam_output/${SAMPLE_ID}_fixmate.bam
+
+# Step 4: Mark and remove duplicates
+samtools markdup -r path/to/bam_output/${SAMPLE_ID}_coord_sorted.bam path/to/bam_output/${SAMPLE_ID}_dedup.bam
+
+# Step 5: Index the final deduplicated BAM file
+samtools index path/to/bam_output/${SAMPLE_ID}_dedup.bam
+```
+
+**Process Explanation:**
+1. **Name sort**: Sort BAM file by read names to prepare for fixmate
+2. **Fixmate**: Fix mate pair information and add mate score tags
+3. **Coordinate sort**: Sort BAM file by genomic coordinates for duplicate marking
+4. **Mark duplicates**: Identify and remove PCR/optical duplicates using `-r` flag
+5. **Index**: Create BAM index file for efficient random access
+
+The final output `${SAMPLE_ID}_dedup.bam` is the processed BAM file ready for downstream analysis.
 
 
 
